@@ -1,15 +1,25 @@
-# Система управления базой данных
+Лабораторная работа №4 - Файловая СУБД
 
-## Лабораторная работа №2-3
+Функционал
 
-### Функционал
+- In-memory хранилище (данные не сохраняются)
+- File-based хранилище (данные сохраняются в JSON)
 
-- Создание пользовательских таблиц
-- CRUD операции с записями
-- Сохранение данных в JSON
+Структура
+src/db/
+├── init.py
+├── models.py # класс Book
+└── repository.py # BookRepository и FileBookRepository
 
-### Установка зависимостей
+tests/
+├── test_models.py
+└── test_repository.py
+Запуск
 
 ```bash
-pip install pytest pytest-cov
+python run.py
+
+Тесты
+python -m pytest tests/ -v
+python -m pytest --cov=src --cov-report=term-missing
 ```
