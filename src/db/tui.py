@@ -1,182 +1,242 @@
-from .backend.memory import (
-    create_record,
-    select_record,
-    update_record,
-    delete_record
-)
+from typing import List, Dict, Any
+from .repository import DatabaseRepository
+from .models import Column
 
-def _print_menu() -> None:
-    print("\n" + "="*40)
-    print("         БИБЛИОТЕКА КНИГ")
-    print("="*40)
-    print("1. Добавить книгу")
-    print("2. Показать все книги")
-    print("3. Найти книги")
-    print("4. Обновить информацию о книге")
-    print("5. Удалить книгу")
-    print("0. Выход")
-    print("-"*40)
-
-def _read_int(prompt: str) -> int:
-    while True:
-        try:
-            return int(input(prompt).strip())
-        except ValueError:
-            print("Ошибка: введите целое число")
-
-def _read_optional_int(prompt: str) -> int | None:
-    while True:
-        value = input(prompt).strip()
-        if value == "":
-            return None
-        try:
-            return int(value)
-        except ValueError:
-            print("Ошибка: введите целое число или оставьте пустым")
-
-def _print_books(books: list[tuple[int, str, str, int, str]]) -> None:
-    if not books:
-        print("Книги не найдены.")
-        return
+class DatabaseTUI:
+    """Текстовый интерфейс для работы с базой данных"""
     
-    print("\nНайденные книги:")
-    print("-" * 60)
-    for book in books:
-        print(f"ID: {book[0]}")
-        print(f"Название: {book[1]}")
-        print(f"Автор: {book[2]}")
-        print(f"Год: {book[3]}")
-        print(f"Жанр: {book[4]}")
-        print("-" * 60)
-
-def _add_book() -> None:
-    print("\n--- Добавление новой книги ---")
+    def __init__(self, repo: DatabaseRepository):
+        self.repo = repo
     
-    try:
-        book_id = _read_int("ID книги: ")
-        title = input("Название: ").strip()
-        author = input("Автор: ").strip()
-        year = _read_int("Год издания: ")
-        genre = input("Жанр: ").strip()
+    def _print_menu(self) -> None:
+        print("\n" + "=" * 50)
+        print("         СИСТЕМА УПРАВЛЕНИЯ БАЗОЙ ДАННЫХ")
+        print("=" * 50)
+        print("1. Создать таблицу")
+        print("2. Показать все таблицы")
+        print("3. Работа с таблицей")
+        print("4. Удалить таблицу")
+        print("0. Выход")
+        print("-" * 50)
+    
+    def _table_menu(self, table_name: str) -> None:
+        while True:
+            print(f"\n--- Таблица: {table_name} ---")
+            print("1. Добавить запись")
+            print("2. Показать все записи")
+            print("3. Обновить запись")
+            print("4. Удалить запись")
+            print("0. Назад")
+            
+            choice = input("Выберите действие: ").strip()
+            
+            if choice == "1":
+                self._add_row(table_name)
+            elif choice == "2":
+                self._show_rows(table_name)
+            elif choice == "3":
+                self._update_row(table_name)
+            elif choice == "4":
+                self._delete_row(table_name)
+            elif choice == "0":
+                break
+            else:
+                print("Неизвестная команда")
+    
+    def _add_row(self, table_name: str) -> None:
+        try:
+            table = self.repo.get_table(table_name)
+            print("\n--- Добавление записи ---")
+            row = {}
+            for col_name, col in table.columns.items():
+                value = input(f"{col_name} ({col.data_type}): ").strip()
+                if col.data_type == 'int':
+                    row[col_name] = int(value) if value else None
+                elif col.data_type == 'float':
+                    row[col_name] = float(value) if value else None
+                elif col.data_type == 'bool':
+                    row[col_name] = value.lower() in ('true', 'да', 'yes', '1') if value else None
+                else:
+                    row[col_name] = value if value else None
+            
+            self.repo.add_row(table_name, row)
+            print("✓ Запись добавлена")
+        except Exception as e:
+            print(f"Ошибка: {e}")
+    
+    def _show_rows(self, table_name: str) -> None:
+        try:
+            rows = self.repo.get_rows(table_name)
+            if not rows:
+                print("Записей нет")
+                return
+            
+            print(f"\n--- Записи ({len(rows)}) ---")
+            for i, row in enumerate(rows):
+                print(f"[{i}] {row}")
+        except Exception as e:
+            print(f"Ошибка: {e}")
+    
+    def _update_row(self, table_name: str) -> None:
+        try:
+            rows = self.repo.get_rows(table_name)
+            if not rows:
+                print("Записей нет")
+                return
+            
+            index = int(input("Введите индекс записи: "))
+            if index < 0 or index >= len(rows):
+                print("Неверный индекс")
+                return
+            
+            table = self.repo.get_table(table_name)
+            print("Введите новые значения (Enter - оставить без изменений):")
+            row = rows[index].copy()
+            for col_name, col in table.columns.items():
+                current = row.get(col_name, '')
+                value = input(f"{col_name} [{current}]: ").strip()
+                if value:
+                    if col.data_type == 'int':
+                        row[col_name] = int(value)
+                    elif col.data_type == 'float':
+                        row[col_name] = float(value)
+                    elif col.data_type == 'bool':
+                        row[col_name] = value.lower() in ('true', 'да', 'yes', '1')
+                    else:
+                        row[col_name] = value
+            
+            self.repo.update_row(table_name, index, row)
+            print("✓ Запись обновлена")
+        except Exception as e:
+            print(f"Ошибка: {e}")
+    
+    def _delete_row(self, table_name: str) -> None:
+        try:
+            rows = self.repo.get_rows(table_name)
+            if not rows:
+                print("Записей нет")
+                return
+            
+            index = int(input("Введите индекс записи для удаления: "))
+            confirm = input("Вы уверены? (д/н): ").lower()
+            if confirm in ('д', 'да', 'y', 'yes'):
+                self.repo.delete_row(table_name, index)
+                print("✓ Запись удалена")
+        except Exception as e:
+            print(f"Ошибка: {e}")
+    
+    def _create_table(self) -> None:
+        print("\n--- Создание таблицы ---")
+        name = input("Название таблицы: ").strip()
+        if not name:
+            print("Название не может быть пустым")
+            return
         
-        book = create_record(book_id, title, author, year, genre)
-        print(f"✓ Книга успешно добавлена: {book[1]}")
+        columns = []
+        print("Введите колонки (пустое имя - завершить):")
+        while True:
+            col_name = input("Имя колонки: ").strip()
+            if not col_name:
+                break
+            
+            print("Тип данных: 1-str, 2-int, 3-float, 4-bool")
+            type_choice = input("Выберите тип (1-4): ").strip()
+            data_type_map = {
+                "1": "str",
+                "2": "int",
+                "3": "float",
+                "4": "bool"
+            }
+            data_type = data_type_map.get(type_choice, "str")
+            
+            nullable = input("Может быть пустым? (д/н): ").lower()
+            nullable = nullable in ('д', 'да', 'y', 'yes')
+            
+            columns.append(Column(
+                name=col_name,
+                data_type=data_type,
+                nullable=nullable
+            ))
         
-    except ValueError as e:
-        print(f"✗ Ошибка: {e}")
-
-def _show_all_books() -> None:
-    print("\n--- Все книги ---")
-    books = select_record()
-    _print_books(books)
-
-def _find_books() -> None:
-    print("\n--- Поиск книг ---")
-    print("(Оставьте поле пустым, чтобы не учитывать его в поиске)")
-    
-    book_id = _read_optional_int("ID: ")
-    title = input("Название: ").strip() or None
-    author = input("Автор: ").strip() or None
-    year = _read_optional_int("Год: ")
-    genre = input("Жанр: ").strip() or None
-    
-    books = select_record(
-        book_id=book_id,
-        title=title,
-        author=author,
-        year=year,
-        genre=genre
-    )
-    
-    print(f"\nНайдено книг: {len(books)}")
-    _print_books(books)
-
-def _update_book() -> None:
-    print("\n--- Обновление книги ---")
-    
-    book_id = _read_int("Введите ID книги для обновления: ")
-    
-    books = select_record(book_id=book_id)
-    if not books:
-        print(f"✗ Книга с ID {book_id} не найдена")
-        return
-    
-    print("\nТекущая информация:")
-    _print_books(books)
-    
-    print("\nВведите новые значения (Enter - оставить без изменений):")
-    updates = {}
-    
-    title = input(f"Новое название [{books[0][1]}]: ").strip()
-    if title:
-        updates['title'] = title
-    
-    author = input(f"Новый автор [{books[0][2]}]: ").strip()
-    if author:
-        updates['author'] = author
-    
-    year_str = input(f"Новый год [{books[0][3]}]: ").strip()
-    if year_str:
-        try:
-            updates['year'] = int(year_str)
-        except ValueError:
-            print("Год должен быть числом. Поле не будет обновлено.")
-    
-    genre = input(f"Новый жанр [{books[0][4]}]: ").strip()
-    if genre:
-        updates['genre'] = genre
-    
-    if not updates:
-        print("Нет изменений для сохранения.")
-        return
-    
-    try:
-        updated = update_record(book_id, **updates)
-        print("✓ Книга успешно обновлена:")
-        _print_books([updated])
-    except ValueError as e:
-        print(f"✗ Ошибка: {e}")
-
-def _delete_book() -> None:
-    print("\n--- Удаление книги ---")
-    
-    book_id = _read_int("Введите ID книги для удаления: ")
-    
-    books = select_record(book_id=book_id)
-    if not books:
-        print(f"✗ Книга с ID {book_id} не найдена")
-        return
-    
-    print("\nБудет удалена следующая книга:")
-    _print_books(books)
-    
-    confirm = input("Вы уверены? (д/Н): ").strip().lower()
-    if confirm in ['д', 'да', 'y', 'yes']:
-        try:
-            deleted = delete_record(book_id)
-            print(f"✓ Книга '{deleted[1]}' удалена")
-        except ValueError as e:
-            print(f"✗ Ошибка: {e}")
-    else:
-        print("Удаление отменено")
-
-def run() -> None:
-    while True:
-        _print_menu()
-        choice = input("Выберите действие: ").strip()
+        if not columns:
+            print("Таблица должна иметь хотя бы одну колонку")
+            return
         
-        if choice == "1":
-            _add_book()
-        elif choice == "2":
-            _show_all_books()
-        elif choice == "3":
-            _find_books()
-        elif choice == "4":
-            _update_book()
-        elif choice == "5":
-            _delete_book()
-        elif choice == "0":
-            print("До свидания!")
-            break
+        try:
+            self.repo.create_table(name, columns)
+            print(f"✓ Таблица '{name}' создана")
+        except Exception as e:
+            print(f"Ошибка: {e}")
+    
+    def _list_tables(self) -> None:
+        tables = self.repo.list_tables()
+        if not tables:
+            print("Таблиц нет")
         else:
-            print("Неизвестная команда. Попробуйте снова.")
+            print("\n--- Таблицы ---")
+            for t in tables:
+                print(f"  - {t}")
+    
+    def _work_with_table(self) -> None:
+        tables = self.repo.list_tables()
+        if not tables:
+            print("Нет таблиц для работы")
+            return
+        
+        print("\n--- Выберите таблицу ---")
+        for i, t in enumerate(tables):
+            print(f"{i+1}. {t}")
+        
+        try:
+            choice = int(input("Номер таблицы: ")) - 1
+            if 0 <= choice < len(tables):
+                self._table_menu(tables[choice])
+            else:
+                print("Неверный номер")
+        except ValueError:
+            print("Ошибка: введите число")
+    
+    def _delete_table(self) -> None:
+        tables = self.repo.list_tables()
+        if not tables:
+            print("Нет таблиц для удаления")
+            return
+        
+        print("\n--- Выберите таблицу для удаления ---")
+        for i, t in enumerate(tables):
+            print(f"{i+1}. {t}")
+        
+        try:
+            choice = int(input("Номер таблицы: ")) - 1
+            if 0 <= choice < len(tables):
+                confirm = input(f"Удалить таблицу '{tables[choice]}'? (д/н): ").lower()
+                if confirm in ('д', 'да', 'y', 'yes'):
+                    self.repo.delete_table(tables[choice])
+                    print("✓ Таблица удалена")
+            else:
+                print("Неверный номер")
+        except ValueError:
+            print("Ошибка: введите число")
+    
+    def run(self) -> None:
+        """Запуск главного меню"""
+        print("\n🐍 Добро пожаловать в СУБД!")
+        
+        while True:
+            self._print_menu()
+            choice = input("Выберите действие: ").strip()
+            
+            if choice == "1":
+                self._create_table()
+            elif choice == "2":
+                self._list_tables()
+            elif choice == "3":
+                self._work_with_table()
+            elif choice == "4":
+                self._delete_table()
+            elif choice == "0":
+                print("До свидания!")
+                break
+            else:
+                print("Неизвестная команда")
+                
