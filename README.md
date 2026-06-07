@@ -1,25 +1,33 @@
-Лабораторная работа №4 - Файловая СУБД
+# Лабораторная работа №4 - Файловая СУБД
 
-Функционал
+## Описание
 
-- In-memory хранилище (данные не сохраняются)
-- File-based хранилище (данные сохраняются в JSON)
+Добавление файлового хранилища (JSON) к существующей ООП-реализации.
+Поддерживаются два типа хранилищ: in-memory и file-based.
 
-Структура
+## Структура проекта
+
 src/db/
 ├── init.py
-├── models.py # класс Book
-└── repository.py # BookRepository и FileBookRepository
+├── models.py # Классы Book, Column, Table
+├── repository.py # BookRepository (in-memory) + FileBookRepository (JSON)
+└── tui.py # LibraryTUI (текстовый интерфейс)
 
 tests/
 ├── test_models.py
 └── test_repository.py
-Запуск
 
-```bash
+run.py
+
+## Запуск программы
+
+bash
 python run.py
 
-Тесты
-python -m pytest tests/ -v
-python -m pytest --cov=src --cov-report=term-missing
-```
+## Запуск тестов
+
+pytest tests/ -v
+
+## Запуск тестов с покрытием
+
+pytest --cov=src --cov-report=term-missing

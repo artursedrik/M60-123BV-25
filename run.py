@@ -1,21 +1,34 @@
 import sys
 sys.path.insert(0, '.')
 
-from src.db.repository import FileBookRepository
-from src.db.models import Book
+from src.db.repository import BookRepository, FileBookRepository
+from src.db.tui import LibraryTUI
+
+
+def choose_repository():
+    print("\n=== ВЫБОР ТИПА ХРАНИЛИЩА ===")
+    print("1. In-memory (данные не сохраняются)")
+    print("2. File-based (сохраняются в JSON-файл)")
+    choice = input("Ваш выбор (1/2): ").strip()
+    if choice == "1":
+        print("✓ Выбрано In-memory хранилище")
+        return BookRepository()
+    elif choice == "2":
+        filename = input("Имя JSON-файла [library.json]: ").strip()
+        if not filename:
+            filename = "library.json"
+        print(f"✓ Выбрано File-based хранилище (файл: {filename})")
+        return FileBookRepository(filename)
+    else:
+        print("Неверный выбор, выбираю In-memory по умолчанию.")
+        return BookRepository()
+
 
 def main():
-    repo = FileBookRepository("library.json")
-    print("=== Демонстрация работы ===")
-    
-    # Добавляем книгу
-    book = repo.create(1, "Война и мир", "Толстой", 1869, "Роман")
-    print(f"Добавлено: {book}")
-    
-    # Показываем все книги
-    print("\nВсе книги:")
-    for b in repo.get_all():
-        print(f"  {b}")
+    repo = choose_repository()
+    app = LibraryTUI(repo)
+    app.run()
+
 
 if __name__ == "__main__":
     main()

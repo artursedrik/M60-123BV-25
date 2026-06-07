@@ -1,5 +1,21 @@
+# Python
 __pycache__/
 *.pyc
-.pytest_cache/
+*.pyo
+
+# Coverage
+.coverage
 htmlcov/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Project specific
 *.json
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
