@@ -1,182 +1,111 @@
-from .backend.memory import (
-    create_record,
-    select_record,
-    update_record,
-    delete_record
-)
+from typing import List, Optional
+from .models import Book
+from .repository import BookRepository
 
-def _print_menu() -> None:
-    print("\n" + "="*40)
-    print("         БИБЛИОТЕКА КНИГ")
-    print("="*40)
-    print("1. Добавить книгу")
-    print("2. Показать все книги")
-    print("3. Найти книги")
-    print("4. Обновить информацию о книге")
-    print("5. Удалить книгу")
-    print("0. Выход")
-    print("-"*40)
+class LibraryTUI:
+    def __init__(self, repository: BookRepository):
+        self.repo = repository
 
-def _read_int(prompt: str) -> int:
-    while True:
-        try:
-            return int(input(prompt).strip())
-        except ValueError:
-            print("Ошибка: введите целое число")
+    def _print_menu(self):
+        print("\n=== БИБЛИОТЕКА КНИГ ===")
+        print("1. Добавить книгу")
+        print("2. Показать все книги")
+        print("3. Найти книги")
+        print("4. Обновить книгу")
+        print("5. Удалить книгу")
+        print("0. Выход")
 
-def _read_optional_int(prompt: str) -> int | None:
-    while True:
+    def _read_int(self, prompt: str) -> int:
+        while True:
+            try:
+                return int(input(prompt).strip())
+            except ValueError:
+                print("Ошибка: введите целое число")
+
+    def _read_optional_int(self, prompt: str) -> Optional[int]:
         value = input(prompt).strip()
-        if value == "":
-            return None
+        return int(value) if value else None
+
+    def _print_books(self, books: List[Book]):
+        if not books:
+            print("Книги не найдены.")
+            return
+        for book in books:
+            print(f"{book.id} | {book.title} | {book.author} | {book.year} | {book.genre}")
+
+    def _add_book(self):
+        print("\n--- Добавление книги ---")
         try:
-            return int(value)
-        except ValueError:
-            print("Ошибка: введите целое число или оставьте пустым")
+            book_id = self._read_int("ID: ")
+            title = input("Название: ").strip()
+            author = input("Автор: ").strip()
+            year = self._read_int("Год: ")
+            genre = input("Жанр: ").strip()
+            self.repo.create(book_id, title, author, year, genre)
+            print("✓ Книга добавлена")
+        except Exception as e:
+            print(f"Ошибка: {e}")
 
-def _print_books(books: list[tuple[int, str, str, int, str]]) -> None:
-    if not books:
-        print("Книги не найдены.")
-        return
-    
-    print("\nНайденные книги:")
-    print("-" * 60)
-    for book in books:
-        print(f"ID: {book[0]}")
-        print(f"Название: {book[1]}")
-        print(f"Автор: {book[2]}")
-        print(f"Год: {book[3]}")
-        print(f"Жанр: {book[4]}")
-        print("-" * 60)
+    def _show_all(self):
+        self._print_books(self.repo.get_all())
 
-def _add_book() -> None:
-    print("\n--- Добавление новой книги ---")
-    
-    try:
-        book_id = _read_int("ID книги: ")
-        title = input("Название: ").strip()
-        author = input("Автор: ").strip()
-        year = _read_int("Год издания: ")
-        genre = input("Жанр: ").strip()
-        
-        book = create_record(book_id, title, author, year, genre)
-        print(f"✓ Книга успешно добавлена: {book[1]}")
-        
-    except ValueError as e:
-        print(f"✗ Ошибка: {e}")
+    def _find_books(self):
+        print("\n--- Поиск книг ---")
+        book_id = self._read_optional_int("ID (Enter - пропустить): ")
+        title = input("Название (Enter - пропустить): ").strip() or None
+        author = input("Автор (Enter - пропустить): ").strip() or None
+        year = self._read_optional_int("Год (Enter - пропустить): ")
+        genre = input("Жанр (Enter - пропустить): ").strip() or None
+        books = self.repo.select(book_id, title, author, year, genre)
+        print(f"Найдено: {len(books)}")
+        self._print_books(books)
 
-def _show_all_books() -> None:
-    print("\n--- Все книги ---")
-    books = select_record()
-    _print_books(books)
-
-def _find_books() -> None:
-    print("\n--- Поиск книг ---")
-    print("(Оставьте поле пустым, чтобы не учитывать его в поиске)")
-    
-    book_id = _read_optional_int("ID: ")
-    title = input("Название: ").strip() or None
-    author = input("Автор: ").strip() or None
-    year = _read_optional_int("Год: ")
-    genre = input("Жанр: ").strip() or None
-    
-    books = select_record(
-        book_id=book_id,
-        title=title,
-        author=author,
-        year=year,
-        genre=genre
-    )
-    
-    print(f"\nНайдено книг: {len(books)}")
-    _print_books(books)
-
-def _update_book() -> None:
-    print("\n--- Обновление книги ---")
-    
-    book_id = _read_int("Введите ID книги для обновления: ")
-    
-    books = select_record(book_id=book_id)
-    if not books:
-        print(f"✗ Книга с ID {book_id} не найдена")
-        return
-    
-    print("\nТекущая информация:")
-    _print_books(books)
-    
-    print("\nВведите новые значения (Enter - оставить без изменений):")
-    updates = {}
-    
-    title = input(f"Новое название [{books[0][1]}]: ").strip()
-    if title:
-        updates['title'] = title
-    
-    author = input(f"Новый автор [{books[0][2]}]: ").strip()
-    if author:
-        updates['author'] = author
-    
-    year_str = input(f"Новый год [{books[0][3]}]: ").strip()
-    if year_str:
+    def _update_book(self):
+        print("\n--- Обновление книги ---")
         try:
-            updates['year'] = int(year_str)
-        except ValueError:
-            print("Год должен быть числом. Поле не будет обновлено.")
-    
-    genre = input(f"Новый жанр [{books[0][4]}]: ").strip()
-    if genre:
-        updates['genre'] = genre
-    
-    if not updates:
-        print("Нет изменений для сохранения.")
-        return
-    
-    try:
-        updated = update_record(book_id, **updates)
-        print("✓ Книга успешно обновлена:")
-        _print_books([updated])
-    except ValueError as e:
-        print(f"✗ Ошибка: {e}")
+            book_id = self._read_int("ID книги: ")
+            title = input("Новое название (Enter - пропустить): ").strip()
+            author = input("Новый автор (Enter - пропустить): ").strip()
+            year_str = input("Новый год (Enter - пропустить): ").strip()
+            genre = input("Новый жанр (Enter - пропустить): ").strip()
+            updates = {}
+            if title: updates['title'] = title
+            if author: updates['author'] = author
+            if year_str: updates['year'] = int(year_str)
+            if genre: updates['genre'] = genre
+            if updates:
+                self.repo.update(book_id, **updates)
+                print("✓ Книга обновлена")
+            else:
+                print("Нет изменений")
+        except Exception as e:
+            print(f"Ошибка: {e}")
 
-def _delete_book() -> None:
-    print("\n--- Удаление книги ---")
-    
-    book_id = _read_int("Введите ID книги для удаления: ")
-    
-    books = select_record(book_id=book_id)
-    if not books:
-        print(f"✗ Книга с ID {book_id} не найдена")
-        return
-    
-    print("\nБудет удалена следующая книга:")
-    _print_books(books)
-    
-    confirm = input("Вы уверены? (д/Н): ").strip().lower()
-    if confirm in ['д', 'да', 'y', 'yes']:
+    def _delete_book(self):
+        print("\n--- Удаление книги ---")
         try:
-            deleted = delete_record(book_id)
-            print(f"✓ Книга '{deleted[1]}' удалена")
-        except ValueError as e:
-            print(f"✗ Ошибка: {e}")
-    else:
-        print("Удаление отменено")
+            book_id = self._read_int("ID книги: ")
+            self.repo.delete(book_id)
+            print("✓ Книга удалена")
+        except Exception as e:
+            print(f"Ошибка: {e}")
 
-def run() -> None:
-    while True:
-        _print_menu()
-        choice = input("Выберите действие: ").strip()
-        
-        if choice == "1":
-            _add_book()
-        elif choice == "2":
-            _show_all_books()
-        elif choice == "3":
-            _find_books()
-        elif choice == "4":
-            _update_book()
-        elif choice == "5":
-            _delete_book()
-        elif choice == "0":
-            print("До свидания!")
-            break
-        else:
-            print("Неизвестная команда. Попробуйте снова.")
+    def run(self):
+        while True:
+            self._print_menu()
+            choice = input("Выберите действие: ").strip()
+            if choice == "1":
+                self._add_book()
+            elif choice == "2":
+                self._show_all()
+            elif choice == "3":
+                self._find_books()
+            elif choice == "4":
+                self._update_book()
+            elif choice == "5":
+                self._delete_book()
+            elif choice == "0":
+                print("До свидания!")
+                break
+            else:
+                print("Неизвестная команда")

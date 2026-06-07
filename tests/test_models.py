@@ -11,6 +11,9 @@ class TestBook(unittest.TestCase):
         book = Book(id=1, title="Test", author="Author", year=2024, genre="Fiction")
         self.assertEqual(book.title, "Test")
 
+    def test_book_str(self):
+        book = Book(id=1, title="Test", author="Author", year=2024, genre="Fiction")
+        self.assertIn("Test", str(book))
+
 if __name__ == "__main__":
     unittest.main()
-    
