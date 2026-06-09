@@ -1,9 +1,10 @@
 import json
 import os
-from typing import List, Dict, Optional, Any
-from .models import Book, Column, Table
+from typing import List, Dict, Optional, Any, Protocol
+from .models import Book
 
 
+# ==================== ИСКЛЮЧЕНИЯ ====================
 class BookRepositoryError(Exception):
     """Базовое исключение для репозитория."""
     pass
@@ -29,15 +30,44 @@ class StorageError(BookRepositoryError):
     pass
 
 
+class UnknownFieldError(InvalidDataError):
+    """Неизвестное поле для обновления."""
+    pass
+
+
+# ==================== ИНТЕРФЕЙС (ПРОТОКОЛ) ====================
+class BookRepositoryInterface(Protocol):
+    """Протокол, описывающий контракт репозитория."""
+
+    def create(self, book_id: int, title: str, author: str, year: int, genre: str) -> Book: ...
+    def get_all(self) -> List[Book]: ...
+    def select(self, book_id: Optional[int] = None, title: Optional[str] = None,
+               author: Optional[str] = None, year: Optional[int] = None,
+               genre: Optional[str] = None) -> List[Book]: ...
+    def update(self, book_id: int, **kwargs) -> Book: ...
+    def delete(self, book_id: int) -> Book: ...
+
+
+# ==================== IN-MEMORY РЕПОЗИТОРИЙ ====================
 class BookRepository:
     """In-memory репозиторий книг."""
+
+    _ALLOWED_UPDATE_FIELDS = {'title', 'author', 'year', 'genre'}
 
     def __init__(self):
         self._books: Dict[int, Book] = {}
 
-    def create(self, book_id: int, title: str, author: str, year: int, genre: str) -> Book:
+    def _validate_year(self, year: int) -> None:
         if year < 0:
             raise InvalidDataError("Год издания не может быть отрицательным")
+
+    def _validate_update_fields(self, **kwargs) -> None:
+        unknown_fields = set(kwargs.keys()) - self._ALLOWED_UPDATE_FIELDS
+        if unknown_fields:
+            raise UnknownFieldError(f"Неизвестные поля для обновления: {', '.join(unknown_fields)}")
+
+    def create(self, book_id: int, title: str, author: str, year: int, genre: str) -> Book:
+        self._validate_year(year)
         if book_id in self._books:
             raise DuplicateBookError(f"Книга с ID {book_id} уже существует")
         book = Book(book_id, title, author, year, genre)
@@ -66,6 +96,7 @@ class BookRepository:
         return result
 
     def update(self, book_id: int, **kwargs) -> Book:
+        self._validate_update_fields(**kwargs)
         if book_id not in self._books:
             raise BookNotFoundError(f"Книга с ID {book_id} не найдена")
         book = self._books[book_id]
@@ -74,8 +105,7 @@ class BookRepository:
         if 'author' in kwargs:
             book.author = kwargs['author']
         if 'year' in kwargs:
-            if kwargs['year'] < 0:
-                raise InvalidDataError("Год издания не может быть отрицательным")
+            self._validate_year(kwargs['year'])
             book.year = kwargs['year']
         if 'genre' in kwargs:
             book.genre = kwargs['genre']
@@ -87,13 +117,45 @@ class BookRepository:
         return self._books.pop(book_id)
 
 
+# ==================== ФАЙЛОВЫЙ РЕПОЗИТОРИЙ ====================
 class FileBookRepository(BookRepository):
     """Файловое хранилище книг (JSON)."""
 
     def __init__(self, filename: str = "library.json"):
         super().__init__()
         self.filename = filename
+        self._ensure_directory_exists()
         self._load()
+
+    def _ensure_directory_exists(self) -> None:
+        """Создаёт директорию для файла, если её нет."""
+        directory = os.path.dirname(self.filename)
+        if directory and not os.path.exists(directory):
+            try:
+                os.makedirs(directory, exist_ok=True)
+            except OSError as e:
+                raise StorageError(f"Не удалось создать директорию {directory}: {e}")
+
+    def _validate_book_data(self, data: Any) -> None:
+        """Проверяет структуру и типы данных книги."""
+        if not isinstance(data, dict):
+            raise StorageError("Неверный формат JSON: ожидается объект (словарь)")
+        required_fields = {'id', 'title', 'author', 'year', 'genre'}
+        missing = required_fields - set(data.keys())
+        if missing:
+            raise StorageError(f"Отсутствуют обязательные поля: {missing}")
+        if not isinstance(data['id'], int):
+            raise StorageError("Поле 'id' должно быть целым числом")
+        if not isinstance(data['title'], str):
+            raise StorageError("Поле 'title' должно быть строкой")
+        if not isinstance(data['author'], str):
+            raise StorageError("Поле 'author' должно быть строкой")
+        if not isinstance(data['year'], int):
+            raise StorageError("Поле 'year' должно быть целым числом")
+        if not isinstance(data['genre'], str):
+            raise StorageError("Поле 'genre' должно быть строкой")
+        if data['year'] < 0:
+            raise StorageError("Год издания не может быть отрицательным")
 
     def _save(self) -> None:
         try:
@@ -112,14 +174,20 @@ class FileBookRepository(BookRepository):
                 if not content:
                     return
                 data = json.loads(content)
-            for item in data:
-                self._books[item["id"]] = Book.from_dict(item)
         except json.JSONDecodeError as e:
             raise StorageError(f"Файл {self.filename} повреждён (невалидный JSON): {e}")
         except (OSError, IOError) as e:
             raise StorageError(f"Не удалось прочитать файл {self.filename}: {e}")
-        except KeyError as e:
-            raise StorageError(f"Файл {self.filename} имеет неверную структуру: отсутствует поле {e}")
+
+        if not isinstance(data, list):
+            raise StorageError("Файл должен содержать JSON-массив книг")
+        self._books = {}
+        for idx, item in enumerate(data):
+            try:
+                self._validate_book_data(item)
+                self._books[item["id"]] = Book.from_dict(item)
+            except StorageError as e:
+                raise StorageError(f"Ошибка в книге {idx}: {e}")
 
     def create(self, book_id: int, title: str, author: str, year: int, genre: str) -> Book:
         book = super().create(book_id, title, author, year, genre)
@@ -127,6 +195,7 @@ class FileBookRepository(BookRepository):
         return book
 
     def update(self, book_id: int, **kwargs) -> Book:
+        self._validate_update_fields(**kwargs)
         book = super().update(book_id, **kwargs)
         self._save()
         return book

@@ -9,25 +9,25 @@
 
 src/db/
 ├── init.py
-├── models.py # Классы Book, Column, Table
+├── models.py # Класс Book
 ├── repository.py # BookRepository (in-memory) + FileBookRepository (JSON)
 └── tui.py # LibraryTUI (текстовый интерфейс)
 
 tests/
 ├── test_models.py
-└── test_repository.py
+├── test_repository.py
+└── test_tui.py
 
-run.py
+run.py # Точка входа с выбором хранилища
 
 ## Запуск программы
 
-bash
 python run.py
 
 ## Запуск тестов
 
-pytest tests/ -v
+python -m pytest tests/ -v
 
 ## Запуск тестов с покрытием
 
-pytest --cov=src --cov-report=term-missing
+python -m pytest --cov=src --cov-report=term-missing

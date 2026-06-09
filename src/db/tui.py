@@ -28,7 +28,13 @@ class LibraryTUI:
             except ValueError:
                 print("Ошибка: введите целое число")
 
-    def _read_optional_int(self, prompt: str) -> Optional[int]:
+    def _read_optional_int(self, prompt: str):
+        while True:
+            try:
+                value = input(prompt).strip()
+                return int(value) if value else None
+            except ValueError:
+                print("Ошибка: введите целое число или оставьте поле пустым")
         value = input(prompt).strip()
         return int(value) if value else None
 

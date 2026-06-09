@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
+
 
 @dataclass
 class Book:
@@ -31,19 +32,3 @@ class Book:
             year=data["year"],
             genre=data["genre"]
         )
-
-
-@dataclass
-class Column:
-    """Определение колонки для пользовательских таблиц."""
-    name: str
-    data_type: str  # 'int', 'str', 'float', 'bool'
-    nullable: bool = True
-
-
-@dataclass
-class Table:
-    """Пользовательская таблица."""
-    name: str
-    columns: Dict[str, Column]
-    rows: List[Dict[str, Any]]
