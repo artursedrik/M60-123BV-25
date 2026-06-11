@@ -1,33 +1,49 @@
+Садриеив Артур Русланович
+М6о-123бв-25
+python
+
 # Лабораторная работа №4 - Файловая СУБД
 
-## Описание
+## Схема проекта
 
-Добавление файлового хранилища (JSON) к существующей ООП-реализации.
-Поддерживаются два типа хранилищ: in-memory и file-based.
+```plain
+PIOA-123/
+├── src/db
+│   ├── __init__.py
+│   ├── models.py
+│   ├── repository.py
+│   └── tui.py
+│
+├── tests/
+│   ├── test_models.py
+│   ├── test_repository.py
+│   └── test_tui.py
+│
+└── README.md
+```
 
-## Структура проекта
+## Различие реализаций
 
-src/db/
-├── init.py
-├── models.py # Класс Book
-├── repository.py # BookRepository (in-memory) + FileBookRepository (JSON)
-└── tui.py # LibraryTUI (текстовый интерфейс)
-
-tests/
-├── test_models.py
-├── test_repository.py
-└── test_tui.py
-
-run.py # Точка входа с выбором хранилища
+| Операция          | In-memory             | File-based                 |
+| ----------------- | --------------------- | -------------------------- |
+| Сохранение данных | Не сохраняется        | Сохраняется в JSON         |
+| Скорость работы   | Очень быстро          | Медленнее (запись на диск) |
+| Переносимость     | Теряется после выхода | Можно передать файл        |
 
 ## Запуск программы
 
+```bash
 python run.py
+```
 
-## Запуск тестов
+### Запуск тестов
 
+```bash
 python -m pytest tests/ -v
+```
 
-## Запуск тестов с покрытием
+### Запуск тестов с покрытием
 
+```bash
 python -m pytest --cov=src --cov-report=term-missing
+```
