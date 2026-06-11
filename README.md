@@ -36,13 +36,13 @@ PIOA-123/
 python run.py
 ```
 
-### Запуск тестов
+## Запуск тестов
 
 ```bash
 python -m pytest tests/ -v
 ```
 
-### Запуск тестов с покрытием
+## Запуск тестов с покрытием
 
 ```bash
 python -m pytest --cov=src --cov-report=term-missing
