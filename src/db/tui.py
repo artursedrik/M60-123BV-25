@@ -1,6 +1,6 @@
-from typing import List, Optional
+from typing import List
 from .models import Book
-from .repository import BookRepository, BookNotFoundError, DuplicateBookError, InvalidDataError, StorageError
+from .repository import BookRepository, BookNotFoundError, DuplicateBookError, InvalidDataError
 
 
 class LibraryTUI:
@@ -35,8 +35,6 @@ class LibraryTUI:
                 return int(value) if value else None
             except ValueError:
                 print("Ошибка: введите целое число или оставьте поле пустым")
-        value = input(prompt).strip()
-        return int(value) if value else None
 
     def _print_books(self, books: List[Book]) -> None:
         if not books:
@@ -147,3 +145,4 @@ class LibraryTUI:
                 break
             else:
                 print("Неизвестная команда")
+                

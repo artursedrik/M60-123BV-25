@@ -1,6 +1,3 @@
-import sys
-sys.path.insert(0, '.')
-
 from src.db.repository import BookRepository, FileBookRepository
 from src.db.tui import LibraryTUI
 
