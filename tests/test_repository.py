@@ -2,6 +2,7 @@ import unittest
 import sys
 import os
 import tempfile
+import json
 
 sys.path.insert(0, '.')
 
@@ -29,6 +30,22 @@ class TestBookRepository(unittest.TestCase):
         with self.assertRaises(InvalidDataError):
             self.repo.create(1, "Тест", "Автор", -5, "Жанр")
 
+    def test_create_empty_title_raises_error(self):
+        with self.assertRaises(InvalidDataError):
+            self.repo.create(1, "", "Автор", 2000, "Жанр")
+
+    def test_create_empty_author_raises_error(self):
+        with self.assertRaises(InvalidDataError):
+            self.repo.create(1, "Название", "", 2000, "Жанр")
+
+    def test_create_empty_genre_raises_error(self):
+        with self.assertRaises(InvalidDataError):
+            self.repo.create(1, "Название", "Автор", 2000, "")
+
+    def test_create_whitespace_title_raises_error(self):
+        with self.assertRaises(InvalidDataError):
+            self.repo.create(1, "   ", "Автор", 2000, "Жанр")
+
     def test_select_by_id(self):
         self.repo.create(1, "Книга1", "Автор1", 2000, "Жанр1")
         self.repo.create(2, "Книга2", "Автор2", 2001, "Жанр2")
@@ -51,6 +68,21 @@ class TestBookRepository(unittest.TestCase):
         self.repo.create(1, "Книга", "Автор", 2000, "Жанр")
         with self.assertRaises(InvalidDataError):
             self.repo.update(1, year=-10)
+
+    def test_update_empty_title_raises_error(self):
+        self.repo.create(1, "Старое", "Автор", 2000, "Жанр")
+        with self.assertRaises(InvalidDataError):
+            self.repo.update(1, title="")
+
+    def test_update_empty_author_raises_error(self):
+        self.repo.create(1, "Старое", "Автор", 2000, "Жанр")
+        with self.assertRaises(InvalidDataError):
+            self.repo.update(1, author="")
+
+    def test_update_empty_genre_raises_error(self):
+        self.repo.create(1, "Старое", "Автор", 2000, "Жанр")
+        with self.assertRaises(InvalidDataError):
+            self.repo.update(1, genre="")
 
     def test_delete_book(self):
         self.repo.create(1, "Книга", "Автор", 2000, "Жанр")
@@ -94,6 +126,87 @@ class TestFileBookRepository(unittest.TestCase):
     def test_corrupted_json_raises_error(self):
         with open(self.temp_file.name, "w", encoding="utf-8") as f:
             f.write("{not valid json}")
+        with self.assertRaises(StorageError):
+            FileBookRepository(self.temp_file.name)
+
+    def test_duplicate_id_in_json_raises_error(self):
+        data = {
+            "schema": FileBookRepository._SCHEMA,
+            "data": [
+                {"id": 1, "title": "A", "author": "A", "year": 2000, "genre": "A"},
+                {"id": 1, "title": "B", "author": "B", "year": 2000, "genre": "B"}
+            ]
+        }
+        with open(self.temp_file.name, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        with self.assertRaises(StorageError):
+            FileBookRepository(self.temp_file.name)
+
+    def test_missing_schema_field_raises_error(self):
+        data = {"data": []}
+        with open(self.temp_file.name, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        with self.assertRaises(StorageError):
+            FileBookRepository(self.temp_file.name)
+
+    def test_missing_data_field_raises_error(self):
+        data = {"schema": {"name": "books", "columns": []}}
+        with open(self.temp_file.name, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        with self.assertRaises(StorageError):
+            FileBookRepository(self.temp_file.name)
+
+    def test_invalid_schema_name_raises_error(self):
+        data = {
+            "schema": {"name": "wrong_table", "columns": []},
+            "data": []
+        }
+        with open(self.temp_file.name, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        with self.assertRaises(StorageError):
+            FileBookRepository(self.temp_file.name)
+
+    def test_invalid_data_structure_raises_error(self):
+        data = {"schema": {"name": "books", "columns": []}, "data": "not a list"}
+        with open(self.temp_file.name, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        with self.assertRaises(StorageError):
+            FileBookRepository(self.temp_file.name)
+
+    def test_invalid_book_data_type_raises_error(self):
+        data = {
+            "schema": FileBookRepository._SCHEMA,
+            "data": [{"id": "not_int", "title": "A", "author": "A", "year": 2000, "genre": "A"}]
+        }
+        with open(self.temp_file.name, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        with self.assertRaises(StorageError):
+            FileBookRepository(self.temp_file.name)
+
+    def test_negative_year_in_json_raises_error(self):
+        data = {
+            "schema": FileBookRepository._SCHEMA,
+            "data": [{"id": 1, "title": "A", "author": "A", "year": -5, "genre": "A"}]
+        }
+        with open(self.temp_file.name, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        with self.assertRaises(StorageError):
+            FileBookRepository(self.temp_file.name)
+
+    def test_invalid_column_in_schema_raises_error(self):
+        """Проверка: неизвестная колонка в схеме -> StorageError"""
+        data = {
+            "schema": {
+                "name": "books",
+                "columns": [
+                    {"name": "id", "type": "int", "nullable": False},
+                    {"name": "wrong_column", "type": "str", "nullable": False}
+                ]
+            },
+            "data": []
+        }
+        with open(self.temp_file.name, "w", encoding="utf-8") as f:
+            json.dump(data, f)
         with self.assertRaises(StorageError):
             FileBookRepository(self.temp_file.name)
 

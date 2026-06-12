@@ -1,4 +1,4 @@
-from src.db.repository import BookRepository, FileBookRepository
+from src.db.repository import BookRepository, FileBookRepository, StorageError
 from src.db.tui import LibraryTUI
 
 
@@ -14,8 +14,14 @@ def choose_repository():
         filename = input("Имя JSON-файла [library.json]: ").strip()
         if not filename:
             filename = "library.json"
-        print(f"✓ Выбрано File-based хранилище (файл: {filename})")
-        return FileBookRepository(filename)
+        try:
+            repo = FileBookRepository(filename)
+            print(f"✓ Выбрано File-based хранилище (файл: {filename})")
+            return repo
+        except StorageError as e:
+            print(f"Ошибка при загрузке файла: {e}")
+            print("Запускаю In-memory хранилище по умолчанию.")
+            return BookRepository()
     else:
         print("Неверный выбор, выбираю In-memory по умолчанию.")
         return BookRepository()
@@ -29,4 +35,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+    
     

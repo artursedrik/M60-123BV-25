@@ -48,9 +48,18 @@ class LibraryTUI:
         try:
             book_id = self._read_int("ID: ")
             title = input("Название: ").strip()
+            if not title:
+                print("Ошибка: название не может быть пустым")
+                return
             author = input("Автор: ").strip()
+            if not author:
+                print("Ошибка: автор не может быть пустым")
+                return
             year = self._read_int("Год: ")
             genre = input("Жанр: ").strip()
+            if not genre:
+                print("Ошибка: жанр не может быть пустым")
+                return
             self.repo.create(book_id, title, author, year, genre)
             print("✓ Книга добавлена")
         except (DuplicateBookError, InvalidDataError) as e:
